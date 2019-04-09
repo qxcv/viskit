@@ -2,13 +2,23 @@ Mostly copy/pasted from [rllab](https://github.com/rll/rllab)'s viskit.
 
 Added some features, like being able to split on multiple hyperparameters.
 
-# Usage
+# Installation
+
+Install this repository using pip:
+
 ```
-python viskit/frontend.py path/to/dir
+pip install 'git+https://github.com/vitchyr/viskit.git'
+```
+
+# Usage
+
+```
+viskit-frontend path/to/dir
 ```
 
 This assumes the structure of dir is something like:
 
+```
 path/
     to/
         dir/
@@ -18,14 +28,10 @@ path/
             exp2/
                 progress.csv
                 variant.json
+```
 
 Note that this support wildcard, i.e.
+
 ```
 python viskit/frontend.py path/to/dir/exp*
-```
-
-# Installation
-Install this repository using pip:
-```
-pip install -e .
 ```
