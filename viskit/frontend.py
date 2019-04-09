@@ -1,21 +1,23 @@
-import sys
-
-from viskit.core import AttrDict
-
-sys.path.append('.')
-import matplotlib
-import os
-
-matplotlib.use('Agg')
-import flask  # import Flask, render_template, send_from_directory
-from viskit import core
-import sys
 import argparse
+import itertools
 import json
+import os
+import sys
+import webbrowser
+import threading
+import time
+
+import flask
 import numpy as np
-from plotly import tools
-import plotly.offline as po
-import plotly.graph_objs as go
+import matplotlib
+matplotlib.use('Agg')
+# import matplotlib.ticker as tick  # noqa: E402
+from plotly import tools  # noqa: E402
+import plotly.offline as po  # noqa: E402
+import plotly.graph_objs as go  # noqa: E402
+
+from viskit import core  # noqa: E402
+from viskit.core import AttrDict  # noqa: E402
 
 
 def flatten(xs):
@@ -26,8 +28,9 @@ def sliding_mean(data_array, window=5):
     data_array = np.array(data_array)
     new_list = []
     for i in range(len(data_array)):
-        indices = list(range(max(i - window + 1, 0),
-                             min(i + window + 1, len(data_array))))
+        indices = list(
+            range(
+                max(i - window + 1, 0), min(i + window + 1, len(data_array))))
         avg = 0
         for j in indices:
             avg += data_array[j]
@@ -36,8 +39,6 @@ def sliding_mean(data_array, window=5):
 
     return np.array(new_list)
 
-
-import itertools
 
 app = flask.Flask(__name__, static_url_path='/static')
 
@@ -61,8 +62,7 @@ def make_plot(
         use_median=False,
         plot_width=None,
         plot_height=None,
-        title=None,
-    ):
+        title=None, ):
     """
     plot_lists is a list of lists.
     Each outer list represents different y-axis attributes.
@@ -76,8 +76,7 @@ def make_plot(
     fig['layout'].update(
         width=plot_width,
         height=plot_height,
-        title=title,
-    )
+        title=title, )
     for y_idx, plot_list in enumerate(plot_lists):
         for idx, plt in enumerate(plot_list):
             color = core.color_defaults[idx % len(core.color_defaults)]
@@ -103,28 +102,25 @@ def make_plot(
                 line=go.scatter.Line(color=core.hex_to_rgb(color, 0)),
                 showlegend=False,
                 legendgroup=plt.legend,
-                hoverinfo='none'
-            )
+                hoverinfo='none')
             values = go.Scatter(
                 x=x,
                 y=y,
                 name=plt.legend,
                 legendgroup=plt.legend,
-                line=dict(color=core.hex_to_rgb(color)),
-            )
+                line=dict(color=core.hex_to_rgb(color)), )
             # plotly is 1-indexed like matplotlib for subplots
             y_idx_plotly = y_idx + 1
             fig.append_trace(values, y_idx_plotly, 1)
             fig.append_trace(errors, y_idx_plotly, 1)
             fig['layout']['yaxis{}'.format(y_idx_plotly)].update(
-                title=plt.plot_key,
-            )
+                title=plt.plot_key, )
 
     fig_div = po.plot(fig, output_type='div', include_plotlyjs=False)
     if "footnote" in plot_list[0]:
         footnote = "<br />".join([
-            r"<span><b>%s</b></span>: <span>%s</span>" % (
-                plt.legend, plt.footnote)
+            r"<span><b>%s</b></span>: <span>%s</span>" % (plt.legend,
+                                                          plt.footnote)
             for plt in plot_list
         ])
         return r"%s<div>%s</div>" % (fig_div, footnote)
@@ -169,11 +165,21 @@ def make_plot_eps(plot_list, use_median=False, counter=0):
             plt.legend = 'TRPO+L2 (0.0)'
 
         ax.fill_between(
-            x, y_lower, y_upper, interpolate=True, facecolor=color,
-            linewidth=0.0, alpha=0.3)
+            x,
+            y_lower,
+            y_upper,
+            interpolate=True,
+            facecolor=color,
+            linewidth=0.0,
+            alpha=0.3)
         if idx == 2:
-            ax.plot(x, y, color=color, label=plt.legend, linewidth=2.0,
-                    linestyle="--")
+            ax.plot(
+                x,
+                y,
+                color=color,
+                label=plt.legend,
+                linewidth=2.0,
+                linestyle="--")
         else:
             ax.plot(x, y, color=color, label=plt.legend, linewidth=2.0)
         ax.grid(True)
@@ -205,7 +211,6 @@ def make_plot_eps(plot_list, use_median=False, counter=0):
         def y_fmt(x, y):
             return str(int(np.round(x / 1000.0))) + 'K'
 
-        import matplotlib.ticker as tick
         #         ax.xaxis.set_major_formatter(tick.FuncFormatter(y_fmt))
         _plt.savefig('tmp' + str(counter) + '.pdf', bbox_inches='tight')
 
@@ -225,8 +230,8 @@ def summary_name(exp, selector=None):
 
 
 def check_nan(exp):
-    return all(
-        not np.any(np.isnan(vals)) for vals in list(exp.progress.values()))
+    return all(not np.any(np.isnan(vals))
+               for vals in list(exp.progress.values()))
 
 
 def get_plot_instruction(
@@ -250,8 +255,7 @@ def get_plot_instruction(
         custom_filter=None,
         legend_post_processor=None,
         normalize_error=False,
-        custom_series_splitter=None,
-):
+        custom_series_splitter=None, ):
     """
     A custom filter might look like
     "lambda exp: exp.flat_params['algo_params_base_kwargs.batch_size'] == 64"
@@ -281,9 +285,8 @@ def get_plot_instruction(
         selector = selector.custom_filter(custom_filter)
 
     if len(split_keys) > 0:
-        split_selectors, split_titles = split_by_keys(
-            selector, split_keys, distinct_params
-        )
+        split_selectors, split_titles = split_by_keys(selector, split_keys,
+                                                      distinct_params)
     else:
         split_selectors = [selector]
         split_titles = ["Plot"]
@@ -309,26 +312,25 @@ def get_plot_instruction(
         else:
             if len(group_keys) > 0:
                 group_selectors, group_legends = split_by_keys(
-                    split_selector, group_keys, distinct_params
-                )
+                    split_selector, group_keys, distinct_params)
             else:
                 group_selectors = [split_selector]
                 group_legends = [split_title]
         list_of_list_of_plot_dicts = []
         for plot_key in plot_keys:
             to_plot = []
-            for group_selector, group_legend in zip(group_selectors, group_legends):
+            for group_selector, group_legend in zip(group_selectors,
+                                                    group_legends):
                 filtered_data = group_selector.extract()
                 if len(filtered_data) == 0:
                     continue
-                if (best_filter_key
-                        and best_filter_key not in group_keys
-                        and best_filter_key not in split_keys):
-                    selectors = split_by_key(
-                        group_selector, best_filter_key, distinct_params
-                    )
+                if (best_filter_key and best_filter_key not in group_keys and
+                        best_filter_key not in split_keys):
+                    selectors = split_by_key(group_selector, best_filter_key,
+                                             distinct_params)
                     scores = [
-                        get_selector_score(plot_key, selector, use_median, best_based_on_final)
+                        get_selector_score(plot_key, selector, use_median,
+                                           best_based_on_final)
                         for selector in selectors
                     ]
 
@@ -342,12 +344,10 @@ def get_plot_instruction(
                         filtered_data = best_selector.extract()
                         print("For split '{0}', group '{1}':".format(
                             split_title,
-                            group_legend,
-                        ))
+                            group_legend, ))
                         print("    best '{0}': {1}".format(
                             best_filter_key,
-                            dict(best_selector._filters)[best_filter_key]
-                        ))
+                            dict(best_selector._filters)[best_filter_key]))
 
                 if only_show_best or only_show_best_sofar:
                     # Group by seed and sort.
@@ -357,9 +357,7 @@ def get_plot_instruction(
                         filtered_data, l=0)
                     filtered_params2 = [p[1] for p in filtered_params]
                     filtered_params_k = [p[0] for p in filtered_params]
-                    product_space = list(itertools.product(
-                        *filtered_params2
-                    ))
+                    product_space = list(itertools.product(*filtered_params2))
                     data_best_regret = None
                     best_regret = np.inf if best_is_lowest else -np.inf
                     kv_string_best_regret = None
@@ -378,17 +376,18 @@ def get_plot_instruction(
                             progresses = [
                                 np.concatenate(
                                     [ps, np.ones(max_size - len(ps)) * np.nan])
-                                for ps in progresses]
+                                for ps in progresses
+                            ]
 
                             if best_based_on_final:
                                 progresses = np.asarray(progresses)[:, -1]
                             if only_show_best_sofar:
                                 if best_is_lowest:
-                                    progresses = np.min(np.asarray(progresses),
-                                                        axis=1)
+                                    progresses = np.min(
+                                        np.asarray(progresses), axis=1)
                                 else:
-                                    progresses = np.max(np.asarray(progresses),
-                                                        axis=1)
+                                    progresses = np.max(
+                                        np.asarray(progresses), axis=1)
                             if use_median:
                                 medians = np.nanmedian(progresses, axis=0)
                                 regret = np.mean(medians)
@@ -397,16 +396,19 @@ def get_plot_instruction(
                                 regret = np.mean(means)
                             distinct_params_k = [p[0] for p in distinct_params]
                             distinct_params_v = [
-                                v for k, v in zip(filtered_params_k, params) if
-                                k in distinct_params_k]
+                                v for k, v in zip(filtered_params_k, params)
+                                if k in distinct_params_k
+                            ]
                             distinct_params_kv = [
-                                (k, v) for k, v in
-                                zip(distinct_params_k, distinct_params_v)]
+                                (k, v)
+                                for k, v in zip(distinct_params_k,
+                                                distinct_params_v)
+                            ]
                             distinct_params_kv_string = str(
                                 distinct_params_kv).replace('), ', ')\t')
-                            print(
-                                '{}\t{}\t{}'.format(regret, len(progresses),
-                                                    distinct_params_kv_string))
+                            print('{}\t{}\t{}'.format(
+                                regret,
+                                len(progresses), distinct_params_kv_string))
                             if best_is_lowest:
                                 change_regret = regret < best_regret
                             else:
@@ -422,36 +424,36 @@ def get_plot_instruction(
                     # -----------------------
                     if np.isfinite(best_regret):
                         progresses = [
-                            exp.progress.get(plot_key, np.array([np.nan])) for
-                            exp in data_best_regret]
+                            exp.progress.get(plot_key, np.array([np.nan]))
+                            for exp in data_best_regret
+                        ]
                         #                         progresses = [progress[:500] for progress in progresses ]
                         sizes = list(map(len, progresses))
                         # more intelligent:
                         max_size = max(sizes)
                         progresses = [
                             np.concatenate(
-                                [ps, np.ones(max_size - len(ps)) * np.nan]) for
-                            ps in progresses]
+                                [ps, np.ones(max_size - len(ps)) * np.nan])
+                            for ps in progresses
+                        ]
                         legend = '{} (mu: {:.3f}, std: {:.5f})'.format(
                             group_legend, best_regret, np.std(best_progress))
                         window_size = np.maximum(
                             int(np.round(max_size / float(1000))), 1)
                         statistics = get_statistics(
-                            progresses, use_median, normalize_error,
-                        )
+                            progresses,
+                            use_median,
+                            normalize_error, )
                         statistics = process_statistics(
                             statistics,
                             smooth_curve,
                             clip_plot_value,
-                            window_size,
-                        )
+                            window_size, )
                         to_plot.append(
                             AttrDict(
                                 legend=legend_post_processor(legend),
                                 plot_key=plot_key,
-                                **statistics
-                            )
-                        )
+                                **statistics))
                         if len(to_plot) > 0 and len(data) > 0:
                             to_plot[-1]["footnote"] = "%s; e.g. %s" % (
                                 kv_string_best_regret,
@@ -460,47 +462,47 @@ def get_plot_instruction(
                             to_plot[-1]["footnote"] = ""
                 else:
                     progresses = [
-                        exp.progress.get(plot_key, np.array([np.nan])) for exp
-                        in filtered_data
+                        exp.progress.get(plot_key, np.array([np.nan]))
+                        for exp in filtered_data
                     ]
                     sizes = list(map(len, progresses))
                     # more intelligent:
                     max_size = max(sizes)
                     progresses = [
                         np.concatenate(
-                            [ps, np.ones(max_size - len(ps)) * np.nan]) for ps
-                        in progresses]
+                            [ps, np.ones(max_size - len(ps)) * np.nan])
+                        for ps in progresses
+                    ]
                     window_size = np.maximum(
                         int(np.round(max_size / float(100))),
-                        1,
-                    )
+                        1, )
 
                     statistics = get_statistics(
-                        progresses, use_median, normalize_error,
-                    )
+                        progresses,
+                        use_median,
+                        normalize_error, )
                     statistics = process_statistics(
                         statistics,
                         smooth_curve,
                         clip_plot_value,
-                        window_size,
-                    )
+                        window_size, )
                     to_plot.append(
                         AttrDict(
                             legend=legend_post_processor(group_legend),
                             plot_key=plot_key,
-                            **statistics
-                        )
-                    )
+                            **statistics))
             if len(to_plot) > 0:
                 list_of_list_of_plot_dicts.append(to_plot)
 
         if len(list_of_list_of_plot_dicts) > 0 and not gen_eps:
             fig_title = split_title
-            plots.append(make_plot(
-                list_of_list_of_plot_dicts,
-                use_median=use_median, title=fig_title,
-                plot_width=plot_width, plot_height=plot_height
-            ))
+            plots.append(
+                make_plot(
+                    list_of_list_of_plot_dicts,
+                    use_median=use_median,
+                    title=fig_title,
+                    plot_width=plot_width,
+                    plot_height=plot_height))
 
         if gen_eps:
             make_plot_eps(to_plot, use_median=use_median, counter=counter)
@@ -533,14 +535,12 @@ def get_selector_score(key, selector, use_median, best_based_on_final):
     data = selector.extract()
     if best_based_on_final:
         values = [
-            exp.progress.get(key, np.array([np.nan]))[-1]
-            for exp in data
+            exp.progress.get(key, np.array([np.nan]))[-1] for exp in data
         ]
     else:
-        values = np.concatenate([
-            exp.progress.get(key, np.array([np.nan]))
-            for exp in data
-        ] or [[np.nan]])
+        values = np.concatenate(
+            [exp.progress.get(key, np.array([np.nan]))
+             for exp in data] or [[np.nan]])
 
     if len(values) == 0 or not np.isfinite(values).all():
         return np.nan
@@ -562,24 +562,17 @@ def get_statistics(progresses, use_median, normalize_errors):
         return dict(
             percentile25=np.nanpercentile(progresses, q=25, axis=0),
             percentile50=np.nanpercentile(progresses, q=50, axis=0),
-            percentile75=np.nanpercentile(progresses, q=75, axis=0),
-        )
+            percentile75=np.nanpercentile(progresses, q=75, axis=0), )
     else:
         stds = np.nanstd(progresses, axis=0)
         if normalize_errors:
             stds /= np.sqrt(np.sum((1. - np.isnan(progresses)), axis=0))
         return dict(
             means=np.nanmean(progresses, axis=0),
-            stds=stds,
-        )
+            stds=stds, )
 
 
-def process_statistics(
-        statistics,
-        smooth_curve,
-        clip_plot_value,
-        window_size
-):
+def process_statistics(statistics, smooth_curve, clip_plot_value, window_size):
     """
     Smoothen and clip time-series data.
     """
@@ -592,8 +585,7 @@ def process_statistics(
             clean_statistics[k] = np.clip(
                 clean_statistics[k],
                 -clip_plot_value,
-                clip_plot_value,
-            )
+                clip_plot_value, )
     return clean_statistics
 
 
@@ -620,13 +612,9 @@ def split_by_keys(base_selector, keys, distinct_params):
     :param distinct_params:
     :return:
     """
-    list_of_key_and_unique_value = [
-        [
-            (key, v)
-            for v in get_possible_values(distinct_params, key)
-        ]
-        for key in keys
-    ]
+    list_of_key_and_unique_value = [[
+        (key, v) for v in get_possible_values(distinct_params, key)
+    ] for key in keys]
     """
     elements of list_of_key_and_unique_value should look like:
         - [(color, red), (color, blue), (color, green), ...]
@@ -639,9 +627,7 @@ def split_by_keys(base_selector, keys, distinct_params):
     """
     selectors = []
     descriptions = []
-    for key_and_value_list in itertools.product(
-            *list_of_key_and_unique_value
-    ):
+    for key_and_value_list in itertools.product(*list_of_key_and_unique_value):
         selector = None
         keys = []
         for key, value in key_and_value_list:
@@ -654,11 +640,10 @@ def split_by_keys(base_selector, keys, distinct_params):
         descriptions.append(", ".join([
             "{0}={1}".format(
                 shorten_key(key),
-                value,
-            )
-            for key, value in key_and_value_list
+                value, ) for key, value in key_and_value_list
         ]))
     return selectors, descriptions
+
 
 def parse_float_arg(args, key):
     x = args.get(key, "")
@@ -735,8 +720,7 @@ def plot_div():
         custom_filter=custom_filter,
         legend_post_processor=legend_post_processor,
         normalize_error=normalize_error,
-        custom_series_splitter=custom_series_splitter,
-    )
+        custom_series_splitter=custom_series_splitter, )
     return plot_div
 
 
@@ -768,37 +752,43 @@ def index():
         plottable_keys=plottable_keys,
         distinct_param_keys=[str(k) for k, v in distinct_params],
         distinct_params=dict([(str(k), list(map(str, v)))
-                              for k, v in distinct_params]),
-    )
+                              for k, v in distinct_params]), )
 
 
-def reload_data(data_filename):
+def reload_data(args):
     global exps_data
     global plottable_keys
     global distinct_params
     exps_data = core.load_exps_data(
         args.data_paths,
-        data_filename,
-        args.disable_variant,
-    )
+        args.dname,
+        args.disable_variant, )
     plottable_keys = list(
         set(flatten(list(exp.progress.keys()) for exp in exps_data)))
     plottable_keys = sorted([k for k in plottable_keys if k is not None])
     distinct_params = sorted(core.extract_distinct_params(exps_data))
 
 
-if __name__ == "__main__":
+def open_delayed(url, wait_time=0.5):
+    # wait a while & open a url in your browser
+    time.sleep(wait_time)
+    webbrowser.open(url, autoraise=True)
+
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("data_paths", type=str, nargs='*')
-    parser.add_argument("--prefix", type=str, nargs='?', default="???")
+    parser.add_argument("--prefix", type=str, nargs='?', default=None)
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--disable-variant", default=False, action='store_true')
-    parser.add_argument("--dname", default='progress.csv', help='name of data file')
+    parser.add_argument(
+        "--disable-variant", default=False, action='store_true')
+    parser.add_argument(
+        "--dname", default='progress.csv', help='name of data file')
     args = parser.parse_args(sys.argv[1:])
 
     # load all folders following a prefix
-    if args.prefix != "???":
+    if args.prefix is not None:
         args.data_paths = []
         dirname = os.path.dirname(args.prefix)
         subdirprefix = os.path.basename(args.prefix)
@@ -807,12 +797,21 @@ if __name__ == "__main__":
             if os.path.isdir(path) and (subdirprefix in subdirname):
                 args.data_paths.append(path)
     print("Importing data from {path}...".format(path=args.data_paths))
-    reload_data(args.dname)
+    reload_data(args)
     port = args.port
     try:
-        print("View http://localhost:%d in your browser" % port)
-        app.run(host='0.0.0.0', port=port, debug=args.debug)
+        url = "http://localhost:%d" % port
+        print("View %s in your browser" % url)
+        open_thread = threading.Thread(
+            target=open_delayed, args=(url, ), daemon=True)
+        open_thread.start()
+        app.run(host='localhost', port=port, debug=args.debug)
+        open_thread.join()
     except OSError as e:
         if e.strerror == 'Address already in use':
             print("Port {} is busy. Try specifying a different port with ("
                   "e.g.) --port=5001".format(port))
+
+
+if __name__ == "__main__":
+    main()
