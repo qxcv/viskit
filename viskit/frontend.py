@@ -108,20 +108,17 @@ def create_bar_chart(
     all_plot_keys = []
     for plot_list in plot_lists:
         all_plot_keys.append(plot_list[0].plot_key)
-    traces = []
-    num_exps = len(plot_lists[0])
     for y_idx, plot_list in enumerate(plot_lists):
-        traces = []
         y_idx_plotly = y_idx + 1
         for plt_idx, plt in enumerate(plot_list):
             if use_median:
                 value = plt.percentile50[value_i]
-                error = plt.percentile75[value_i] - value
-                error_minus = value - plt.percentile25[value_i]
+                # error = plt.percentile75[value_i] - value
+                # error_minus = value - plt.percentile25[value_i]
             else:
                 value = np.mean(plt.means)
-                error = plt.stds[value_i]
-                error_minus = plt.stds[value_i]
+                # error = plt.stds[value_i]
+                # error_minus = plt.stds[value_i]
             # convert numpy scalar to number
             # value = value.item()
             # error = error.item()
@@ -142,7 +139,7 @@ def create_bar_chart(
                     # visible=True,
                 # ),
                 name=plt.legend,
-                showlegend=y_idx==0,
+                showlegend=y_idx == 0,
                 legendgroup=plt.legend,
                 marker=dict(
                     color=named_colors[plt_idx % len(named_colors)],
@@ -921,7 +918,7 @@ def index():
     elif len(plottable_keys) > 0:
         plot_keys = plottable_keys[0:1]
     else:
-        plot_keys = None
+        plot_keys = []
     plot_div = get_plot_instruction(plot_keys=plot_keys)
     return flask.render_template(
         "main.html",
@@ -961,7 +958,7 @@ def main():
     global args
     parser = argparse.ArgumentParser()
     parser.add_argument("data_paths", type=str, nargs='*')
-    parser.add_argument("--prefix", type=str, nargs='?', default="???")
+    parser.add_argument("--prefix", type=str, nargs='?', default=None)
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--disable-variant", default=False, action='store_true')
@@ -974,7 +971,7 @@ def main():
     args = parser.parse_args(sys.argv[1:])
 
     # load all folders following a prefix
-    if args.prefix != "???":
+    if args.prefix is not None:
         args.data_paths = []
         dirname = os.path.dirname(args.prefix)
         subdirprefix = os.path.basename(args.prefix)
