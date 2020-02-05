@@ -987,7 +987,7 @@ def main():
     port = args.port
     try:
         print("View http://localhost:%d in your browser" % port)
-        app.run(host='0.0.0.0', port=port, debug=args.debug)
+        app.run(host='localhost', port=port, debug=args.debug)
     except OSError as e:
         if e.strerror == 'Address already in use':
             print("Port {} is busy. Try specifying a different port with ("
