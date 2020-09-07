@@ -7,7 +7,7 @@ Added some features, like being able to split on multiple hyperparameters.
 Install this repository using pip:
 
 ```
-pip install 'git+https://github.com/vitchyr/viskit.git'
+pip install 'git+https://github.com/qxcv/viskit.git'
 ```
 
 # Usage
